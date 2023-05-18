@@ -18,7 +18,6 @@ nest_asyncio.apply()
 
 class api(object):
     def __init__(self, _useragent, _globoid, _token, _times, _diretorio):
-
         os.chdir(_diretorio)
 
         self.cwd = os.getcwd()
@@ -43,11 +42,9 @@ class api(object):
         self.log()
 
     def tic(self):
-
         self.start_time = time.time()
 
     def tac(self):
-
         self.end_time = time.time()
 
         t_sec = round(self.end_time - self.start_time)
@@ -70,11 +67,9 @@ class api(object):
             arqlog.write(texto)
 
     def mercado_status(self):
-
         auth_url = "https://api.cartolafc.globo.com/mercado/status"
 
         with httpx.Client(headers=self.headers) as client:
-
             response = client.get(auth_url, follow_redirects=True)
 
         body = response.json()
@@ -96,12 +91,10 @@ class api(object):
         return status_mercado, rodada_atual
 
     def mercado(self):
-
         self.tic()
         global df_mercado
 
         if self.mercado_status()[0] == 1:
-
             print(
                 "\nMercado aberto, estamos na rodada {}".format(
                     self.mercado_status()[1]
@@ -110,7 +103,6 @@ class api(object):
             print("Obtendo informações do Mercado")
 
         else:
-
             print(
                 "\nMercado Fechado, rodada {} em andamento.".format(
                     self.mercado_status()[1]
@@ -139,10 +131,10 @@ class api(object):
                 "status_id",
                 "pontos_num",
                 "preco_num",
-                "minimo_para_valorizar",
                 "variacao_num",
                 "media_num",
                 "jogos_num",
+                "minimo_para_valorizar",
                 "slug",
                 "apelido",
                 "apelido_abreviado",
@@ -187,7 +179,6 @@ class api(object):
         self.tac()
 
     def posicoes(self):
-
         self.tic()
         print("Obtendo Posições")
 
@@ -219,7 +210,6 @@ class api(object):
         self.tac()
 
     def status(self):
-
         self.tic()
         print("Obtendo Status")
         auth_url = "https://api.cartolafc.globo.com/atletas/mercado"
@@ -245,7 +235,6 @@ class api(object):
         self.tac()
 
     def clubes(self):
-
         self.tic()
         print("Obtendo Times")
         auth_url = "https://api.cartolafc.globo.com/clubes"
@@ -280,14 +269,12 @@ class api(object):
         self.tac()
 
     def liga(self):
-
         self.tic()
         print("Obtendo informações da Liga:")
 
         self.df_liga = pd.DataFrame()
 
         async def get_liga(client, auth_url, time):
-
             print("- {}".format(time))
             response = await client.get(auth_url, follow_redirects=True)
             body = response.json()
@@ -296,9 +283,7 @@ class api(object):
             self.df_liga = pd.concat([self.df_liga, dados], ignore_index=True)
 
         async def main():
-
             async with httpx.AsyncClient(timeout=None) as client:
-
                 tasks = []
                 for time in self.times:
                     auth_url = "https://api.cartolafc.globo.com/times?q={}".format(time)
@@ -328,7 +313,6 @@ class api(object):
         self.tac()
 
     def partidas(self):
-
         self.tic()
         print("Obtendo partidas das rodadas")
 
@@ -338,7 +322,6 @@ class api(object):
             looprodadas = range(self.mercado_status()[1], self.mercado_status()[1] + 1)
 
         async def get_partidas(client, auth_url, rodada):
-
             response = await client.get(auth_url, follow_redirects=True)
             body = response.json()
             dados = json_normalize(data=body, sep="")
@@ -375,6 +358,9 @@ class api(object):
             )
             df_partida_rodada = df_partida_rodada.replace("", np.nan)
             df_partida_rodada["rodada"] = rodada
+            df_partida_rodada["rodada_id"] = rodada
+            df_partida_rodada["rodada_atual"] = self.mercado_status()[1]
+
             columns_rename = {
                 "transmissao.label": "transmissaolabel",
                 "transmissao.url": "transmissaourl",
@@ -406,9 +392,7 @@ class api(object):
             )
 
         async def main():
-
             async with httpx.AsyncClient(timeout=None) as client:
-
                 tasks = []
                 for rodada in looprodadas:
                     auth_url = "https://api.cartolafc.globo.com/partidas/{}".format(
@@ -424,7 +408,6 @@ class api(object):
         self.tac()
 
     def pontuacao(self):
-
         self.tic()
         print("Obtendo a pontuaçao das rodadas")
         status = self.mercado_status()[0]
@@ -443,11 +426,43 @@ class api(object):
         looprodadas = range(status_rodada01, status_rodada02)
 
         async def get_pontuacao(client, auth_url, rodd):
-
             # print(rodd)
 
             response = await client.get(auth_url, follow_redirects=True)
             body = response.json()["atletas"]
+
+            df_pontuacaorodadafinal = pd.DataFrame(
+                columns=[
+                    "rodada",
+                    "atleta_id",
+                    "scout",
+                    "pontuacao",
+                    "posicao_id",
+                    "clube_id",
+                    "entrou_em_campo",
+                    "G",
+                    "A",
+                    "FT",
+                    "FD",
+                    "FF",
+                    "FS",
+                    "PS",
+                    "PP",
+                    "I",
+                    "PI",
+                    "DP",
+                    "SG",
+                    "DE",
+                    "DS",
+                    "GC",
+                    "CV",
+                    "CA",
+                    "GS",
+                    "FC",
+                    "PC",
+                    "V",
+                ]
+            )
 
             df_pontuacaorodada = pd.DataFrame.from_dict(body)
             df_pontuacaorodada = df_pontuacaorodada.T.reset_index()
@@ -481,7 +496,6 @@ class api(object):
             df_scout = pd.DataFrame()
 
             for _scout in df_pontuacaorodada["scout"]:
-
                 if _scout == None:
                     _scout = {}
                 else:
@@ -512,26 +526,61 @@ class api(object):
                     "GS",
                     "FC",
                     "PC",
+                    "V",
                 ]
             )
 
-            df_pont = (
-                pd.concat([df_pont, df_scout], ignore_index=True).fillna(0).astype(int)
+            df_pontuacaorodada = pd.concat(
+                [
+                    df_pontuacaorodada,
+                    df_pontuacaorodada["scout"].apply(
+                        lambda x: pd.Series(x, dtype="int")
+                    ),
+                ],
+                axis=1,
             )
 
-            df_pontuacaorodada = pd.merge(
-                df_pontuacaorodada, df_pont, left_index=True, right_index=True
+            df_pontuacaorodadafinal = pd.concat(
+                [df_pontuacaorodadafinal, df_pontuacaorodada]
             )
-            df_pontuacaorodada.drop("scout", axis=1, inplace=True)
-            df_pontuacaorodada = df_pontuacaorodada.sort_values(
+
+            df_pontuacaorodadafinal = df_pontuacaorodadafinal.drop(columns="scout")
+            df_pontuacaorodadafinal = df_pontuacaorodadafinal.sort_values(
                 ["rodada", "pontuacao"], ascending=([True, False])
             ).reset_index(drop=True)
+            df_pontuacaorodadafinal = df_pontuacaorodadafinal.fillna(0)
 
-            df_pontuacaorodada = df_pontuacaorodada.rename(
+            df_pontuacaorodadafinal = df_pontuacaorodadafinal.rename(
                 columns={"rodada": "rodada_id"}
             )
 
-            df_pontuacaorodada.to_csv(
+            df_pontuacaorodadafinal = df_pontuacaorodadafinal.astype(
+                {
+                    "G": int,
+                    "A": int,
+                    "FT": int,
+                    "FD": int,
+                    "FF": int,
+                    "FS": int,
+                    "PS": int,
+                    "PP": int,
+                    "I": int,
+                    "PI": int,
+                    "DP": int,
+                    "SG": int,
+                    "DE": int,
+                    "DS": int,
+                    "GC": int,
+                    "CV": int,
+                    "CA": int,
+                    "GS": int,
+                    "FC": int,
+                    "PC": int,
+                    "V": int,
+                }
+            )
+
+            df_pontuacaorodadafinal.to_csv(
                 "{}\\DADOS\\PONTUACAORODADA\\pontuacaorodada_{:0>2}.csv".format(
                     self.cwd, rodd
                 ),
@@ -542,12 +591,9 @@ class api(object):
             )
 
         async def main():
-
             async with httpx.AsyncClient(limits=self._limits, timeout=None) as client:
-
                 tasks = []
                 for rodd in looprodadas:
-
                     rod = "" if rodd == rodada else rodd
 
                     auth_url = (
@@ -565,14 +611,12 @@ class api(object):
         self.tac()
 
     def escalacao(self):
-
         self.tic()
         print("Obtendo escalação")
         rodadas = self.mercado_status()[1]
         lista_liga = self.df_liga["time_id"]
 
         async def get_escalacao(client, auth_url, time, rodada):
-
             df_escalacao = pd.DataFrame()
             df_capitao = pd.DataFrame()
             df_titular = pd.DataFrame()
@@ -751,6 +795,7 @@ class api(object):
                     "scoutGS",
                     "scoutFC",
                     "scoutPC",
+                    "scoutV",
                 ]
             )
 
@@ -789,6 +834,7 @@ class api(object):
                     "scoutGS": "int",
                     "scoutFC": "int",
                     "scoutPC": "int",
+                    "scoutV": "int",
                 }
             )
 
@@ -881,6 +927,7 @@ class api(object):
                         "scoutGS",
                         "scoutFC",
                         "scoutPC",
+                        "scoutV",
                     ]
                 )
 
@@ -922,6 +969,7 @@ class api(object):
                         "scoutGS": "int",
                         "scoutFC": "int",
                         "scoutPC": "int",
+                        "scoutV": "int",
                     }
                 )
 
@@ -940,9 +988,7 @@ class api(object):
                 print("Time {} sem reservas na rodada {}".format(time, rodada))
 
         async def main():
-
             async with httpx.AsyncClient(limits=self._limits, timeout=None) as client:
-
                 tasks = []
                 for rodada in range(1, rodadas + 1):
                     for time in lista_liga:
