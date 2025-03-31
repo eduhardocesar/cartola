@@ -1,17 +1,15 @@
 # %%
+import asyncio
 import os
-import pandas as pd
-from pandas import json_normalize
-import numpy as np
-
 import time
 from datetime import datetime
 
-import asyncio
 import httpx
-from httpx import Limits
-
 import nest_asyncio
+import numpy as np
+import pandas as pd
+from httpx import Limits
+from pandas import json_normalize
 
 nest_asyncio.apply()
 
@@ -29,6 +27,21 @@ class api(object):
             max_connections=10, max_keepalive_connections=5, keepalive_expiry=5.0
         )
         self.headers = {"User-Agent": self.useragent, "X-GLB-Token": self.token}
+
+        self.criar_diretorio("./DADOS/ARQLOG")
+        self.criar_diretorio("./DADOS/STATUSMERCADO")
+        self.criar_diretorio("./DADOS/MERCADO")
+        self.criar_diretorio("./DADOS/POSICOES")
+        self.criar_diretorio("./DADOS/STATUS")
+        self.criar_diretorio("./DADOS/CLUBES")
+        self.criar_diretorio("./DADOS/LIGA")
+        self.criar_diretorio("./DADOS/PARTIDASRODADA")
+        self.criar_diretorio("./DADOS/PONTUACAORODADA")
+        self.criar_diretorio("./DADOS/ESCALACAO")
+        self.criar_diretorio("./DADOS/CAPITAO")
+        self.criar_diretorio("./DADOS/TITULAR")
+        self.criar_diretorio("./DADOS/RESERVA")
+        self.criar_diretorio("./DADOS/RESERVALUXO")
 
         self.mercado_status()
         self.mercado()
@@ -62,9 +75,18 @@ class api(object):
         tempo = datetime.now()
         texto = "Extração;{}\n".format(tempo)
         with open(
-            "{}\\DADOS\\ARQLOG\\arqlog.csv".format(self.cwd), "a", encoding="utf-8"
+            "{}/DADOS/ARQLOG/arqlog.csv".format(self.cwd), "a", encoding="utf-8"
         ) as arqlog:
             arqlog.write(texto)
+
+    def criar_diretorio(self, caminho):
+        try:
+            os.makedirs(caminho)
+            print(f"Diretório '{caminho}' criado com sucesso.")
+        except FileExistsError:
+            print(f"O diretório '{caminho}' já existe.")
+        except OSError as error:
+            print(f"Erro ao criar o diretório: {error}")
 
     def mercado_status(self):
         auth_url = "https://api.cartolafc.globo.com/mercado/status"
@@ -81,7 +103,7 @@ class api(object):
             {"rodada_atual": [rodada_atual], "status_mercado": [name_status_mercado]}
         )
         df_statusmercado.to_csv(
-            "{}\\DADOS\\STATUSMERCADO\\statusmercado.csv".format(self.cwd),
+            "{}/DADOS/STATUSMERCADO/statusmercado.csv".format(self.cwd),
             index=False,
             header=True,
             sep=";",
@@ -154,8 +176,6 @@ class api(object):
             df_mercado["minimo_para_valorizar"],
         )
 
-        # print(df_mercado[df_mercado["minimo_para_valorizar"].isna()])
-
         df_mercado = df_mercado.rename(
             columns={
                 "slug": "atleta_slug",
@@ -167,7 +187,7 @@ class api(object):
         )
 
         df_mercado.to_csv(
-            "{}\\DADOS\\MERCADO\\mercado_{:0>2}.csv".format(
+            "{}/DADOS/MERCADO/mercado_{:0>2}.csv".format(
                 self.cwd, self.mercado_status()[1]
             ),
             index=False,
@@ -200,7 +220,7 @@ class api(object):
         )
 
         df_posicoes.to_csv(
-            "{}\\DADOS\\POSICOES\\posicoes.csv".format(self.cwd),
+            "{}/DADOS/POSICOES/posicoes.csv".format(self.cwd),
             index=False,
             header=True,
             sep=";",
@@ -225,7 +245,7 @@ class api(object):
         df_status = df_status.rename(columns={"nome": "status_nome", "id": "status_id"})
 
         df_status.to_csv(
-            "{}\\DADOS\\STATUS\\status.csv".format(self.cwd),
+            "{}/DADOS/STATUS/status.csv".format(self.cwd),
             index=False,
             header=True,
             sep=";",
@@ -260,7 +280,7 @@ class api(object):
             }
         )
         df_clubes.to_csv(
-            "{}\\DADOS\\CLUBES\\clubes.csv".format(self.cwd),
+            "{}/DADOS/CLUBES/clubes.csv".format(self.cwd),
             index=False,
             header=True,
             sep=";",
@@ -304,7 +324,7 @@ class api(object):
         )
 
         self.df_liga.to_csv(
-            "{}\\DADOS\\LIGA\\liga.csv".format(self.cwd),
+            "{}/DADOS/LIGA/liga.csv".format(self.cwd),
             index=False,
             header=True,
             sep=";",
@@ -327,7 +347,6 @@ class api(object):
             dados = json_normalize(data=body, sep="")
 
             df_partida_rodada = pd.DataFrame()
-
             df_partida_rodada = pd.concat([df_partida_rodada, dados], ignore_index=True)
 
             df_partida_rodada = pd.DataFrame(
@@ -356,7 +375,11 @@ class api(object):
             df_partida_rodada = df_partida_rodada.drop(
                 ["aproveitamento_mandante", "aproveitamento_visitante"], axis=1
             )
-            df_partida_rodada = df_partida_rodada.replace("", np.nan)
+
+            df_partida_rodada["periodo_tr"] = df_partida_rodada["periodo_tr"].replace(
+                "", "-"
+            )
+
             df_partida_rodada["rodada"] = rodada
             df_partida_rodada["rodada_id"] = rodada
             df_partida_rodada["rodada_atual"] = self.mercado_status()[1]
@@ -382,7 +405,7 @@ class api(object):
             )
 
             df_partida_rodada.to_csv(
-                "{}\\DADOS\\PARTIDASRODADA\\partidasrodada_{:0>2}.csv".format(
+                "{}/DADOS/PARTIDASRODADA/partidasrodada_{:0>2}.csv".format(
                     self.cwd, rodada
                 ),
                 index=False,
@@ -534,25 +557,46 @@ class api(object):
                 [
                     df_pontuacaorodada,
                     df_pontuacaorodada["scout"].apply(
-                        lambda x: pd.Series(x, dtype="int")
+                        lambda x: pd.Series(x, dtype="str")
                     ),
                 ],
                 axis=1,
             )
 
             df_pontuacaorodadafinal = pd.concat(
-                [df_pontuacaorodadafinal, df_pontuacaorodada]
+                [df_pontuacaorodadafinal, df_pontuacaorodada], ignore_index=True
             )
 
             df_pontuacaorodadafinal = df_pontuacaorodadafinal.drop(columns="scout")
             df_pontuacaorodadafinal = df_pontuacaorodadafinal.sort_values(
                 ["rodada", "pontuacao"], ascending=([True, False])
             ).reset_index(drop=True)
-            df_pontuacaorodadafinal = df_pontuacaorodadafinal.fillna(0)
 
             df_pontuacaorodadafinal = df_pontuacaorodadafinal.rename(
                 columns={"rodada": "rodada_id"}
             )
+
+            df_pontuacaorodadafinal["G"] = df_pontuacaorodadafinal["G"].fillna("0")
+            df_pontuacaorodadafinal["A"] = df_pontuacaorodadafinal["A"].fillna("0")
+            df_pontuacaorodadafinal["FT"] = df_pontuacaorodadafinal["FT"].fillna("0")
+            df_pontuacaorodadafinal["FD"] = df_pontuacaorodadafinal["FD"].fillna("0")
+            df_pontuacaorodadafinal["FF"] = df_pontuacaorodadafinal["FF"].fillna("0")
+            df_pontuacaorodadafinal["FS"] = df_pontuacaorodadafinal["FS"].fillna("0")
+            df_pontuacaorodadafinal["PS"] = df_pontuacaorodadafinal["PS"].fillna("0")
+            df_pontuacaorodadafinal["PP"] = df_pontuacaorodadafinal["PP"].fillna("0")
+            df_pontuacaorodadafinal["I"] = df_pontuacaorodadafinal["I"].fillna("0")
+            df_pontuacaorodadafinal["PI"] = df_pontuacaorodadafinal["PI"].fillna("0")
+            df_pontuacaorodadafinal["DP"] = df_pontuacaorodadafinal["DP"].fillna("0")
+            df_pontuacaorodadafinal["SG"] = df_pontuacaorodadafinal["SG"].fillna("0")
+            df_pontuacaorodadafinal["DE"] = df_pontuacaorodadafinal["DE"].fillna("0")
+            df_pontuacaorodadafinal["DS"] = df_pontuacaorodadafinal["DS"].fillna("0")
+            df_pontuacaorodadafinal["GC"] = df_pontuacaorodadafinal["GC"].fillna("0")
+            df_pontuacaorodadafinal["CV"] = df_pontuacaorodadafinal["CV"].fillna("0")
+            df_pontuacaorodadafinal["CA"] = df_pontuacaorodadafinal["CA"].fillna("0")
+            df_pontuacaorodadafinal["GS"] = df_pontuacaorodadafinal["GS"].fillna("0")
+            df_pontuacaorodadafinal["FC"] = df_pontuacaorodadafinal["FC"].fillna("0")
+            df_pontuacaorodadafinal["PC"] = df_pontuacaorodadafinal["PC"].fillna("0")
+            df_pontuacaorodadafinal["V"] = df_pontuacaorodadafinal["V"].fillna("0")
 
             df_pontuacaorodadafinal = df_pontuacaorodadafinal.astype(
                 {
@@ -580,8 +624,14 @@ class api(object):
                 }
             )
 
+            df_pontuacaorodadafinal = df_pontuacaorodadafinal.astype(
+                {
+                    "pontuacao": float,
+                }
+            )
+
             df_pontuacaorodadafinal.to_csv(
-                "{}\\DADOS\\PONTUACAORODADA\\pontuacaorodada_{:0>2}.csv".format(
+                "{}/DADOS/PONTUACAORODADA/pontuacaorodada_{:0>2}.csv".format(
                     self.cwd, rodd
                 ),
                 index=False,
@@ -621,6 +671,7 @@ class api(object):
             df_capitao = pd.DataFrame()
             df_titular = pd.DataFrame()
             df_reserva = pd.DataFrame()
+            df_reservaluxo = pd.DataFrame()
 
             response = await client.get(auth_url, follow_redirects=True)
             body = response.json()
@@ -665,15 +716,8 @@ class api(object):
                 }
             )
 
-            df_escalacao["pontos"] = df_escalacao["pontos"].replace(
-                [None], [0], regex=True
-            )
-            df_escalacao["pontos_campeonato"] = df_escalacao[
-                "pontos_campeonato"
-            ].replace([None], [0], regex=True)
-
             df_escalacao.to_csv(
-                "{}\\DADOS\\ESCALACAO\\escalacao_{}_{:0>2}.csv".format(
+                "{}/DADOS/ESCALACAO/escalacao_{}_{:0>2}.csv".format(
                     self.cwd, time, rodada
                 ),
                 index=False,
@@ -709,7 +753,43 @@ class api(object):
             )
 
             df_capitao.to_csv(
-                "{}\\DADOS\\CAPITAO\\capitao_{}_{:0>2}.csv".format(
+                "{}/DADOS/CAPITAO/capitao_{}_{:0>2}.csv".format(self.cwd, time, rodada),
+                index=False,
+                header=True,
+                sep=";",
+                encoding="utf-8",
+            )
+
+            # RESERVA DE LUXO
+            df_luxo = pd.DataFrame()
+            df_luxo = pd.concat([df_e, dados], ignore_index=True)
+            df_luxo["rodada"] = rodada
+            df_luxo["rodada_id"] = rodada
+            df_luxo["atletas"] = df_luxo["atletas"].astype(str) + "]"
+            df_luxo["atletas"] = df_luxo["atletas"].values.tolist()
+            df_luxo = df_luxo[["rodada", "timetime_id", "reserva_luxo_id"]]
+
+            df_luxo.dropna(subset=["reserva_luxo_id"], inplace=True)
+            df_luxo = df_luxo.astype({"reserva_luxo_id": int})
+
+            df_reservaluxo = pd.concat([df_reservaluxo, df_luxo], ignore_index=True)
+            df_reservaluxo = df_reservaluxo.drop_duplicates(
+                subset=["rodada", "timetime_id"]
+            )
+
+            df_reservaluxo = df_reservaluxo.sort_values(
+                ["rodada", "timetime_id"], ascending=([True, True])
+            ).reset_index(drop=True)
+            df_reservaluxo = df_reservaluxo.rename(
+                columns={
+                    "rodada": "rodada_id",
+                    "reserva_luxo_id": "atleta_id",
+                    "timetime_id": "time_id",
+                }
+            )
+
+            df_reservaluxo.to_csv(
+                "{}/DADOS/RESERVALUXO/reservaluxo_{}_{:0>2}.csv".format(
                     self.cwd, time, rodada
                 ),
                 index=False,
@@ -799,7 +879,7 @@ class api(object):
                 ]
             )
 
-            df_t_03 = pd.concat([df_t_03, df_t_02], ignore_index=True).fillna(0)
+            df_t_03 = pd.concat([df_t_03, df_t_02], ignore_index=True)
             df_t_final = pd.merge(df_t_01, df_t_03, left_index=True, right_index=True)
 
             df_titular = pd.concat([df_titular, df_t_final], ignore_index=True)
@@ -811,6 +891,28 @@ class api(object):
             ).reset_index(drop=True)
 
             df_titular = df_titular.rename(columns={"timetime_id": "time_id"})
+
+            df_titular["scoutG"] = df_titular["scoutG"].fillna("0")
+            df_titular["scoutA"] = df_titular["scoutA"].fillna("0")
+            df_titular["scoutFT"] = df_titular["scoutFT"].fillna("0")
+            df_titular["scoutFD"] = df_titular["scoutFD"].fillna("0")
+            df_titular["scoutFF"] = df_titular["scoutFF"].fillna("0")
+            df_titular["scoutFS"] = df_titular["scoutFS"].fillna("0")
+            df_titular["scoutPS"] = df_titular["scoutPS"].fillna("0")
+            df_titular["scoutPP"] = df_titular["scoutPP"].fillna("0")
+            df_titular["scoutI"] = df_titular["scoutI"].fillna("0")
+            df_titular["scoutPI"] = df_titular["scoutPI"].fillna("0")
+            df_titular["scoutDP"] = df_titular["scoutDP"].fillna("0")
+            df_titular["scoutSG"] = df_titular["scoutSG"].fillna("0")
+            df_titular["scoutDE"] = df_titular["scoutDE"].fillna("0")
+            df_titular["scoutDS"] = df_titular["scoutDS"].fillna("0")
+            df_titular["scoutGC"] = df_titular["scoutGC"].fillna("0")
+            df_titular["scoutCV"] = df_titular["scoutCV"].fillna("0")
+            df_titular["scoutCA"] = df_titular["scoutCA"].fillna("0")
+            df_titular["scoutGS"] = df_titular["scoutGS"].fillna("0")
+            df_titular["scoutFC"] = df_titular["scoutFC"].fillna("0")
+            df_titular["scoutPC"] = df_titular["scoutPC"].fillna("0")
+            df_titular["scoutV"] = df_titular["scoutV"].fillna("0")
 
             df_titular = df_titular.astype(
                 {
@@ -840,9 +942,7 @@ class api(object):
 
             df_titular = df_titular.iloc[:, 0:33]
             df_titular.to_csv(
-                "{}\\DADOS\\TITULAR\\titular_{}_{:0>2}.csv".format(
-                    self.cwd, time, rodada
-                ),
+                "{}/DADOS/TITULAR/titular_{}_{:0>2}.csv".format(self.cwd, time, rodada),
                 index=False,
                 header=True,
                 sep=";",
@@ -856,11 +956,9 @@ class api(object):
                 df_r = pd.DataFrame()
 
                 df_r = pd.concat([df_r, dados], ignore_index=True)
-                # df_r = df_r[["atleta_id"]]
                 df_r["rodada"] = rodada
                 df_r["rodada_id"] = rodada
                 df_r["timetime_id"] = time
-                # df_r = df_r[["rodada", "timetime_id", "atleta_id"]]
                 df_r.drop(
                     ["slug", "apelido", "apelido_abreviado", "nome", "foto"],
                     axis=1,
@@ -931,7 +1029,7 @@ class api(object):
                     ]
                 )
 
-                df_r_03 = pd.concat([df_r_03, df_r_02]).fillna(0)
+                df_r_03 = pd.concat([df_r_03, df_r_02])
                 df_r_final = pd.merge(
                     df_r_01, df_r_03, left_index=True, right_index=True
                 )
@@ -946,6 +1044,28 @@ class api(object):
                 ).reset_index(drop=True)
 
                 df_reserva = df_reserva.rename(columns={"timetime_id": "time_id"})
+
+                df_reserva["scoutG"] = df_reserva["scoutG"].fillna("0")
+                df_reserva["scoutA"] = df_reserva["scoutA"].fillna("0")
+                df_reserva["scoutFT"] = df_reserva["scoutFT"].fillna("0")
+                df_reserva["scoutFD"] = df_reserva["scoutFD"].fillna("0")
+                df_reserva["scoutFF"] = df_reserva["scoutFF"].fillna("0")
+                df_reserva["scoutFS"] = df_reserva["scoutFS"].fillna("0")
+                df_reserva["scoutPS"] = df_reserva["scoutPS"].fillna("0")
+                df_reserva["scoutPP"] = df_reserva["scoutPP"].fillna("0")
+                df_reserva["scoutI"] = df_reserva["scoutI"].fillna("0")
+                df_reserva["scoutPI"] = df_reserva["scoutPI"].fillna("0")
+                df_reserva["scoutDP"] = df_reserva["scoutDP"].fillna("0")
+                df_reserva["scoutSG"] = df_reserva["scoutSG"].fillna("0")
+                df_reserva["scoutDE"] = df_reserva["scoutDE"].fillna("0")
+                df_reserva["scoutDS"] = df_reserva["scoutDS"].fillna("0")
+                df_reserva["scoutGC"] = df_reserva["scoutGC"].fillna("0")
+                df_reserva["scoutCV"] = df_reserva["scoutCV"].fillna("0")
+                df_reserva["scoutCA"] = df_reserva["scoutCA"].fillna("0")
+                df_reserva["scoutGS"] = df_reserva["scoutGS"].fillna("0")
+                df_reserva["scoutFC"] = df_reserva["scoutFC"].fillna("0")
+                df_reserva["scoutPC"] = df_reserva["scoutPC"].fillna("0")
+                df_reserva["scoutV"] = df_reserva["scoutV"].fillna("0")
 
                 df_reserva = df_reserva.astype(
                     {
@@ -975,7 +1095,7 @@ class api(object):
 
                 df_reserva = df_reserva.iloc[:, 0:33]
                 df_reserva.to_csv(
-                    "{}\\DADOS\\RESERVA\\reserva_{}_{:0>2}.csv".format(
+                    "{}/DADOS/RESERVA/reserva_{}_{:0>2}.csv".format(
                         self.cwd, time, rodada
                     ),
                     index=False,
