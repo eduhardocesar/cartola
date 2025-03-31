@@ -1,7 +1,7 @@
 ## Extrator de dados da API do `CARTOLA`
 ***
 ### Olá Pessoal
-O projeto consiste em uma codigo que executa a extração dos dados da API do `Cartola` (© Copyright 2000-2023 Globo Comunicação e Participações S.A.)
+O projeto consiste em uma codigo que executa a extração dos dados da API do `Cartola` (© Copyright 2000-2025 Globo Comunicação e Participações S.A.)
 
 > Para obter o `globoid` e o `token` de sua conta acesse manualmente no cartola em seu navegador,
 depois de logado entre no seguinte endereço: https://login.globo.com/api/user ao entrar no endereço receberá o retorno a api da globo com os dados de sua conta.
